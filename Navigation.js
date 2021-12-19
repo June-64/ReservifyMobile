@@ -14,12 +14,26 @@ import {
   DrawerItemList,
   DrawerItem,
 } from '@react-navigation/drawer';
-import { logoutUser } from './api';
+import { logoutUser, loggedInCheck } from './api';
+import Reserve from './Main/Reserve';
+import { NavigationActions } from 'react-navigation';
+
 
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
 
+
+
 function CustomDrawerContent(props) {
+  const logout = async () => {
+    try {
+      const result = await logoutUser()
+      props.navigation.navigate('Auth')
+    } catch (err) {
+      const errMessage = err.message
+    }
+  }
+
   return (
     <View style={{flex:1}}>
       <DrawerContentScrollView {...props}
@@ -33,7 +47,7 @@ function CustomDrawerContent(props) {
               <Text style={styles.sideBarText}>דף בית</Text>
             )}
           onPress={() => { props.navigation.navigate('Index') }}
-          style={[styles.drawerItem, styles.drawerItemFirst]}
+          style={[styles.drawerItem, styles.drawerItemFirst, {marginTop: 100}]}
         />
         <DrawerItem 
             icon={() => (
@@ -42,7 +56,7 @@ function CustomDrawerContent(props) {
           label={() => (
               <Text style={styles.sideBarText}>הזמנת מגרש</Text>
             )}
-          onPress={() => { props.navigation.navigate('Index') }}
+          onPress={() => { props.navigation.navigate('Reserve') }}
           style={styles.drawerItem}
         />
         <DrawerItem 
@@ -100,9 +114,9 @@ function CustomDrawerContent(props) {
               <View style={styles.sideBarIcons}><Image style={{height: 50, width: 60}} source={require('./assets/logout.png')} /></View>
             )}
           label={() => (
-              <Text style={styles.sideBarText}>התנתקות</Text>
+              <Text style={styles.sideBarText}></Text>
             )}
-          onPress={() => { props.logout }}
+          onPress={() => { logout() }}
           style={[styles.drawerItem, styles.drawerItemLast]}
         />
       </DrawerContentScrollView>
@@ -116,7 +130,7 @@ class AuthNavigator extends React.Component {
   }
 
   render() {
-
+    
     return (
       <Stack.Navigator
         screenOptions={{
@@ -125,7 +139,7 @@ class AuthNavigator extends React.Component {
         }}
         initialState={"Login"}
       >
-        <Stack.Screen name="Login" component={Login}/>
+        <Stack.Screen name="Login" component={Login} />
         <Stack.Screen name="Register" component={Register} />
         <Stack.Screen name="UserInfo" component={UserInfo} />
       </Stack.Navigator>
@@ -134,27 +148,29 @@ class AuthNavigator extends React.Component {
 }
 
 class MainNavigator extends React.Component {
-  logout = async ({ navigation }) => {
-    console.log(1)
-    try {
-        const result = await logoutUser()
-        navigation.navigate('Auth', {}, NavigationActions.navigate({routeName: 'Login'}))    
-    } catch (err) {
-      const errMessage = err.message
-    }
-  }
+  render() {
 
-  render(){
     return (
       <Drawer.Navigator
-        drawerContent={(props) => <CustomDrawerContent {...props} logout={props.logout}/>}
+        drawerContent={(props) => <CustomDrawerContent {...props} />}
         initialRouteName='Index'
-        screenOptions={{
-          headerShown: false,
+        screenOptions={({ navigation }) => ({
           drawerPosition: 'right',
-        }}
+          gestureEnabled: false,
+          headerBackground: () => (<View style = {styles.LogoContainer}><Image style={styles.Logo} source={require('./assets/Reservify-white.png')} /></View>),
+          title: '',
+          headerRight: () => (
+            <Pressable style={styles.sideBarButtonWrapper} onPress={() => navigation.dispatch(DrawerActions.openDrawer())}>
+              <MaterialCommunityIcons name="reorder-horizontal" size={30} color="white" />
+            </Pressable>
+          ),
+          headerLeft: () => {
+            null
+          }
+        })}
       >
         <Drawer.Screen name="Index" component={Index} />
+        <Drawer.Screen name="Reserve" component={Reserve} />
       </Drawer.Navigator>
     )
   }
@@ -163,32 +179,47 @@ class MainNavigator extends React.Component {
 export default class AppNavigator extends React.Component {
   constructor(props) {
     super(props)
+
+    this.state = {
+      loggedIn: false,
+      loggedInLoaded: false
+    }
+  }
+
+  componentDidMount() {
+    this.loggedCheck();
+  }
+
+  loggedCheck = async () => {
+    try {
+      const result = await loggedInCheck()
+      this.setState({ loggedIn: result["logged"], loggedInLoaded: true })
+    } catch (err) {
+      const errMessage = err.message
+    }
   }
 
   render() {
-    const logged = this.props.logged
+    const logged = this.state.loggedIn
 
-    return (
-      <NavigationContainer>
-        <Stack.Navigator
-          initialRouteName = {logged ? "Main" : "Auth"}
-          screenOptions={({ navigation }) => ({
-            gestureEnabled: false,
-            headerBackground: () => (<View style={styles.LogoContainer}><Image style={styles.Logo} source={require('./assets/Reservify-white.png')} /></View>),
-            title: '',
-  
-            headerRight: () => (
-              <Pressable style={styles.sideBarButtonWrapper} onPress={() => navigation.dispatch(DrawerActions.openDrawer())}>
-                <MaterialCommunityIcons name="reorder-horizontal" size={30} color="white" />
-              </Pressable>
-            ),
-            headerShown: logged
-          })}>
-          <Stack.Screen name="Auth" component={AuthNavigator} />
-          <Stack.Screen name="Main" component={MainNavigator} />
-        </Stack.Navigator>
-      </NavigationContainer>
-    )
+    if (this.state.loggedInLoaded) {
+      return (
+        <NavigationContainer>
+          <Stack.Navigator
+            initialRouteName={logged ? "Main" : "Auth"}
+            screenOptions={() => ({
+              gestureEnabled: false,
+              headerShown: false
+            })}>
+            <Stack.Screen name="Auth" component={AuthNavigator}/>
+            <Stack.Screen name="Main" component={MainNavigator} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      )
+    }
+    else {
+      return null
+    }
   }
 }
 

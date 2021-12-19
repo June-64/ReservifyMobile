@@ -59,6 +59,7 @@ export default class Login extends React.Component {
             if (result["status"] != "success")
                 this.setState({ errorMessage: result["message"], modalVisible: true })
             else {
+                
                 this.props.navigation.navigate('Main', {}, NavigationActions.navigate({ routeName: 'Index' }))
             }
         } catch (err) {
